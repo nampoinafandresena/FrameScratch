@@ -1,4 +1,4 @@
-package frame.com;
+package com.framescratch.servlet;
 
 import java.io.*;
 
