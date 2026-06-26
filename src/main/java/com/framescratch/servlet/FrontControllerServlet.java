@@ -1,23 +1,54 @@
 package com.framescratch.servlet;
 
 import java.io.*;
-
+import java.util.ArrayList;
+import java.util.List;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 
-public class FrontControllerServlet extends HttpServlet {
-    public void processRequest(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException{
-        res.setContentType("text/html");
-        PrintWriter out = res.getWriter();
+import com.framescratch.utils.Utilitaire;
 
-        out.println("<p>URL = " + req.getRequestURL() + "</p>");
+public class FrontControllerServlet extends HttpServlet {
+    List<String> listeControllers = new ArrayList<>();
+
+    // fonction init
+    public void init() throws ServletException {
+        try {
+            String nom_package = getServletConfig().getInitParameter("nomPackage");
+            listeControllers = Utilitaire.recupererClassesAvecAnnotation(new Utilitaire(nom_package,
+                    "com.framescratch.annotation.Controller", java.lang.annotation.ElementType.TYPE));
+        } catch (Exception e) {
+            System.out.println("Erreur lors de la recuperation des controllers : " + e.getMessage());
+        }
     }
 
-    public void doGet(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException{
+    protected void processRequest(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        response.setContentType("text/html");
+        PrintWriter out = response.getWriter();
+
+        out.println("<h1>Front Controller</h1>");
+        out.println("<p>URL recue : " + request.getRequestURL() + "</p>");
+
+        for (String controller : listeControllers) {
+            out.println("<p>Controller found : " + controller + "</p>");
+        }
+
+    }
+
+    // S0
+    // public void processRequest(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException{
+    //     res.setContentType("text/html");
+    //     PrintWriter out = res.getWriter();
+
+    //     out.println("<p>URL = " + req.getRequestURL() + "</p>");
+    // }
+
+    protected void doGet(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException{
         processRequest(req, res);
     }
 
-    public void doPost(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException{
+    protected void doPost(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException{
         processRequest(req, res);
     }
 }
