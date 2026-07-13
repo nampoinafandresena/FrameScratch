@@ -5,7 +5,9 @@ import java.lang.annotation.*;
 import java.lang.reflect.Method;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.net.URL;
 
 public class Utilitaire {
@@ -110,6 +112,38 @@ public class Utilitaire {
         }
 
         return resultat;
+    }
+
+    public static Map<String, Mapping> recupererUrlMapping(Utilitaire utilitaire) throws Exception {
+        Map<String, Mapping> urlMapping = new HashMap<>();
+
+        List<Class<?>> classes = getAllClassesFromPackage(utilitaire.getNom_package());
+
+        Class<?> annotationClass = Class.forName(utilitaire.getAnnotation());
+
+        if (!annotationClass.isAnnotation()) {
+            throw new Exception("Ce n'est pas une annotation");
+        }
+
+        Class<? extends Annotation> annotation = annotationClass.asSubclass(Annotation.class);
+
+        Method valueMethod = annotation.getMethod("value");
+
+        for (Class<?> classe : classes) {
+            for (Method method : classe.getDeclaredMethods()) {
+
+                if (method.isAnnotationPresent(annotation)) {
+
+                    Annotation ann = method.getAnnotation(annotation);
+
+                    String url = (String) valueMethod.invoke(ann);
+
+                    urlMapping.put(url, new Mapping(classe, method));
+                }
+            }
+        }
+
+        return urlMapping;
     }
 
 
