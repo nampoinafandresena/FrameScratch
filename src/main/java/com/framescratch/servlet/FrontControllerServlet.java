@@ -2,6 +2,7 @@ package com.framescratch.servlet;
 
 import java.io.*;
 import java.lang.annotation.*;
+import java.lang.reflect.Method;
 import java.util.*;
 
 import jakarta.servlet.*;
@@ -57,8 +58,20 @@ public class FrontControllerServlet extends HttpServlet {
         Mapping mapping = urlMapping.get(urlMethod);
 
         if (mapping != null) {
-                out.println("<p>URL: " + urlMethod.getUrl() + " avec la methode : " + urlMethod.getMethod() + "| Classe: " + mapping.getClasse().getName() + " | Fonction: "
-                        + mapping.getMethode().getName() + "</p>");
+            out.println("<p>URL: " 
+                + urlMethod.getUrl() + " avec la methode : " 
+                + urlMethod.getMethod() + "| Classe: " 
+                + mapping.getClasse().getName() + " | Fonction: "
+                + mapping.getMethode().getName() + "</p>");
+            try {
+                Object instance = mapping.getClasse().getDeclaredConstructor().newInstance();
+                Method methode = mapping.getMethode();
+                Object resultat = methode.invoke(instance);
+
+                out.print("<script>console.log('" + resultat.toString() + "');</script>");
+            } catch (Exception e) {
+                out.println("<p>Erreur lors de l'invocation de la méthode : " + e.getMessage() + "</p>");
+            }
 
         } else {
             out.println("Url non trouvee : " + url);
