@@ -11,7 +11,7 @@ import com.framescratch.utils.*;
 
 public class FrontControllerServlet extends HttpServlet {
     List<String> listeControllers = new ArrayList<>();
-    Map<String, Mapping> urlMapping = new HashMap<>();
+    Map<UrlMethod, Mapping> urlMapping = new HashMap<>();
     
     // fonction init
     public void init() throws ServletException {
@@ -23,6 +23,7 @@ public class FrontControllerServlet extends HttpServlet {
                     new Utilitaire(nom_package, "com.framescratch.annotation.UrlMapping", ElementType.METHOD));
         } catch (Exception e) {
             System.out.println("Erreur lors de la recuperation des controllers : " + e.getMessage());
+            throw new ServletException(e.getMessage());
         }
     }
 
@@ -32,12 +33,12 @@ public class FrontControllerServlet extends HttpServlet {
         PrintWriter out = response.getWriter();
 
         String url = request.getRequestURI().substring(request.getContextPath().length());
+        String method = request.getMethod();
 
         out.println("<h1>Front Controller</h1>");
         out.println("<p>URL recue : " + url + "</p>");
 
-        afficher(url, request, response);
-
+        afficher(url, method, request, response);
     }
 
     protected void doGet(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException{
@@ -48,22 +49,23 @@ public class FrontControllerServlet extends HttpServlet {
         processRequest(req, res);
     }
 
-    protected void afficher(String url, HttpServletRequest request, HttpServletResponse response)
+    protected void afficher(String url, String method, HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         PrintWriter out = response.getWriter();
 
-        Mapping mapping = urlMapping.get(url);
+        UrlMethod urlMethod = new UrlMethod(url, method);
+        Mapping mapping = urlMapping.get(urlMethod);
 
         if (mapping != null) {
-                out.println("Url trouvee : " + url);
-                out.println("Classe: " + mapping.getClasse().getName());
-                out.println("Méthode: " + mapping.getMethode().getName());
+                out.println("<p>URL: " + urlMethod.getUrl() + " avec la methode : " + urlMethod.getMethod() + "| Classe: " + mapping.getClasse().getName() + " | Fonction: "
+                        + mapping.getMethode().getName() + "</p>");
+
         } else {
             out.println("Url non trouvee : " + url);
             out.println("<h2>Liste des URL disponibles :</h2>");
-            for (String urlDisponible : urlMapping.keySet()) {
-                Mapping mappingDisponible = urlMapping.get(urlDisponible);
-                out.println("<p>URL: " + urlDisponible + " | Classe: " + mappingDisponible.getClasse().getName() + " | Méthode: "
+            for (UrlMethod urlMethodDisponible : urlMapping.keySet()) {
+                Mapping mappingDisponible = urlMapping.get(urlMethodDisponible);
+                out.println("<p>URL: " + urlMethodDisponible.getUrl() + " avec la methode : " + urlMethodDisponible.getMethod() + "| Classe: " + mappingDisponible.getClasse().getName() + " | Fonction: "
                         + mappingDisponible.getMethode().getName() + "</p>");
             }
         }
