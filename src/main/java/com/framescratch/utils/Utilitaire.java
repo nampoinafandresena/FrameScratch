@@ -114,8 +114,8 @@ public class Utilitaire {
         return resultat;
     }
 
-    public static Map<String, Mapping> recupererUrlMapping(Utilitaire utilitaire) throws Exception {
-        Map<String, Mapping> urlMapping = new HashMap<>();
+    public static Map<UrlMethod, Mapping> recupererUrlMapping(Utilitaire utilitaire) throws Exception {
+        Map<UrlMethod, Mapping> urlMapping = new HashMap<>();
 
         List<Class<?>> classes = getAllClassesFromPackage(utilitaire.getNom_package());
 
@@ -128,6 +128,7 @@ public class Utilitaire {
         Class<? extends Annotation> annotation = annotationClass.asSubclass(Annotation.class);
 
         Method valueMethod = annotation.getMethod("value");
+        Method methodUrl = annotation.getMethod("method");
 
         for (Class<?> classe : classes) {
             for (Method method : classe.getDeclaredMethods()) {
@@ -137,8 +138,16 @@ public class Utilitaire {
                     Annotation ann = method.getAnnotation(annotation);
 
                     String url = (String) valueMethod.invoke(ann);
+                    String methodOfUrl = (String) methodUrl.invoke(ann);
 
-                    urlMapping.put(url, new Mapping(classe, method));
+                    UrlMethod urlMethod = new UrlMethod(url, methodOfUrl);
+
+
+                    if(urlMapping.get(urlMethod) != null){
+                        throw new Exception("URL Deja utilise par un autre controller : " + urlMethod.getUrl() + " avec la methode : " + urlMethod.getMethod());
+                    }
+
+                    urlMapping.put(urlMethod, new Mapping(classe, method));
                 }
             }
         }
