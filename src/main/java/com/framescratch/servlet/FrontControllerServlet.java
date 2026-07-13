@@ -18,8 +18,8 @@ public class FrontControllerServlet extends HttpServlet {
     public void init() throws ServletException {
         try {
             String nom_package = getServletConfig().getInitParameter("nomPackage");
-            listeControllers = Utilitaire.recupererClassesAvecAnnotation(new Utilitaire(nom_package,
-                    "com.framescratch.annotation.Controller", ElementType.METHOD));
+            Utilitaire.recupererClassesAvecAnnotation(new Utilitaire(nom_package,
+                    "com.framescratch.annotation.Controller", ElementType.METHOD), listeControllers);
                     urlMapping = Utilitaire.recupererUrlMapping(
                     new Utilitaire(nom_package, "com.framescratch.annotation.UrlMapping", ElementType.METHOD));
         } catch (Exception e) {
