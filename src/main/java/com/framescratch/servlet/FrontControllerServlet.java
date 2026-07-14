@@ -9,6 +9,8 @@ import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 
 import com.framescratch.utils.*;
+import com.framescratch.view.ModelAndView;
+import com.framescratch.view.ViewResolver;
 
 public class FrontControllerServlet extends HttpServlet implements ServletContextListener{
     List<String> listeControllers = new ArrayList<>();
@@ -42,36 +44,51 @@ public class FrontControllerServlet extends HttpServlet implements ServletContex
         processRequest(req, res);
     }
 
-    protected void afficher(String url, String method, HttpServletRequest request, HttpServletResponse response, PrintWriter out)
+    protected void afficher(String url, String method, HttpServletRequest request, HttpServletResponse response,
+            PrintWriter out)
             throws ServletException, IOException {
 
         UrlMethod urlMethod = new UrlMethod(url, method);
         Mapping mapping = urlMapping.get(urlMethod);
 
         if (mapping != null) {
-            out.println("<p>URL: " + urlMethod.getUrl() 
-            + " avec la methode : " + urlMethod.getMethod() 
-            + " | Classe: " + mapping.getClasse().getName() 
-            + " | Fonction: " + mapping.getMethode().getName() + "</p>");
+            out.println("<p>URL: " + urlMethod.getUrl() + " avec la methode : " + urlMethod.getMethod() + "| Classe: "
+                    + mapping.getClasse().getName() + " | Fonction: "
+                    + mapping.getMethode().getName() + "</p>");
             try {
                 Object instance = mapping.getClasse().getDeclaredConstructor().newInstance();
                 Method methode = mapping.getMethode();
                 Object resultat = methode.invoke(instance);
 
-                out.print("<script>console.log('" + resultat.toString() + "');</script>");
+                if (resultat instanceof ModelAndView) {
+                    ModelAndView mv = (ModelAndView) resultat;
+                    ViewResolver viewResolver = new ViewResolver();
+                    viewResolver.setNom_vue(mv.getNom_vue());
+                    viewResolver.setPrefix_vue(getServletContext().getInitParameter("prefixVue"));
+                    viewResolver.setExtension_vue(getServletContext().getInitParameter("suffixVue"));
+
+                    for (Map.Entry<String, Object> entry : mv.getAttributs().entrySet()) {
+                        request.setAttribute(entry.getKey(), entry.getValue());
+                    }
+
+                    RequestDispatcher dispatcher = request.getRequestDispatcher(viewResolver.getCheminCompletVue());
+                    dispatcher.forward(request, response);
+                } else {
+                    out.println("<p>Le résultat de la méthode n'est pas de type ModelAndView.</p>");
+                }
+
             } catch (Exception e) {
                 out.println("<p>Erreur lors de l'invocation de la méthode : " + e.getMessage() + "</p>");
             }
-
         } else {
             out.println("Url non trouvee : " + url);
             out.println("<h2>Liste des URL disponibles :</h2>");
             for (UrlMethod urlMethodDisponible : urlMapping.keySet()) {
                 Mapping mappingDisponible = urlMapping.get(urlMethodDisponible);
-                out.println("<p>URL: " + urlMethodDisponible.getUrl() 
-                            + " avec la methode : " + urlMethodDisponible.getMethod() 
-                            + " | Classe: " + mappingDisponible.getClasse().getName() 
-                            + " | Fonction: " + mappingDisponible.getMethode().getName() + "</p>");
+                out.println("<p>URL: " + urlMethodDisponible.getUrl() + " avec la methode : "
+                        + urlMethodDisponible.getMethod() + "| Classe: " + mappingDisponible.getClasse().getName()
+                        + " | Fonction: "
+                        + mappingDisponible.getMethode().getName() + "</p>");
             }
         }
     }
