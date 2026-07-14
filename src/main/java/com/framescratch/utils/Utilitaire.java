@@ -21,9 +21,7 @@ public class Utilitaire {
         this.niveau = niveau;
     }
 
-    public static List<Class<?>> getAllClassesFromPackage(String nom_package) throws Exception{
-        List<Class<?>> classes = new ArrayList<>();
-
+    public static void getAllClassesFromPackage(String nom_package, List<Class<?>> classes) throws Exception{
         String classpath = nom_package.replace('.', '/');
 
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
@@ -48,13 +46,9 @@ public class Utilitaire {
                 }
             }
         }
-        
-        return classes;
     }
 
-    public static List<String> recupererClassesAvecAnnotation(Utilitaire utilitaire) throws Exception {
-        List<String> listeAvecAnnotation = new ArrayList<>();
-
+    public static void recupererClassesAvecAnnotation(Utilitaire utilitaire, List<String> listeAvecAnnotation) throws Exception {
         try {
             listeAvecAnnotation = utilitaire.recupererElements(utilitaire);
 
@@ -62,15 +56,14 @@ public class Utilitaire {
             e.printStackTrace();
             throw new Exception("Erreur lors de la récupération des classes : " + e.getMessage());
         }
-
-        return listeAvecAnnotation;
     }
 
     public List<String> recupererElements(Utilitaire utilitaire) throws Exception {
 
         List<String> resultat = new ArrayList<>();
 
-        List<Class<?>> classes = getAllClassesFromPackage(utilitaire.getNom_package());
+        List<Class<?>> classes = new ArrayList<>();
+        getAllClassesFromPackage(utilitaire.getNom_package(), classes);
 
         Class<?> annotationClass = Class.forName(utilitaire.getAnnotation());
 
@@ -117,7 +110,8 @@ public class Utilitaire {
     public static Map<UrlMethod, Mapping> recupererUrlMapping(Utilitaire utilitaire) throws Exception {
         Map<UrlMethod, Mapping> urlMapping = new HashMap<>();
 
-        List<Class<?>> classes = getAllClassesFromPackage(utilitaire.getNom_package());
+        List<Class<?>> classes = new ArrayList<>();
+        getAllClassesFromPackage(utilitaire.getNom_package(), classes);
 
         Class<?> annotationClass = Class.forName(utilitaire.getAnnotation());
 
