@@ -15,11 +15,16 @@ import com.framescratch.view.ViewResolver;
 public class FrontControllerServlet extends HttpServlet implements ServletContextListener{
     List<String> listeControllers = new ArrayList<>();
     Map<UrlMethod, Mapping> urlMapping = new HashMap<>();
+    Object applicationContext;
     
     // fonction init
     public void init() throws ServletException {
         listeControllers = (List<String>) getServletContext().getAttribute("listeControllers");
         urlMapping = (Map<UrlMethod, Mapping>) getServletContext().getAttribute("urlMapping");
+
+        if (getServletContext().getAttribute("springContext") != null) {
+            applicationContext = getServletContext().getAttribute("springContext");
+        }
     }
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
@@ -58,7 +63,14 @@ public class FrontControllerServlet extends HttpServlet implements ServletContex
             try {
                 Object instance = mapping.getClasse().getDeclaredConstructor().newInstance();
                 Method methode = mapping.getMethode();
-                Object resultat = methode.invoke(instance);
+                
+                Object[] arguments = new Object[methode.getParameters().length];
+                    if(applicationContext != null) {
+                        Utilitaire.creerArguments(methode, arguments, applicationContext);
+                    } else {
+                        Utilitaire.creerArgumentsSansAppCtx(methode, arguments);
+                    }
+                Object resultat = methode.invoke(instance, arguments);
 
                 if (resultat instanceof ModelAndView) {
                     ModelAndView mv = (ModelAndView) resultat;

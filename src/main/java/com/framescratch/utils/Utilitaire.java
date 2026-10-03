@@ -3,6 +3,7 @@ package com.framescratch.utils;
 import java.io.File;
 import java.lang.annotation.*;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -147,6 +148,21 @@ public class Utilitaire {
         }
 
         return urlMapping;
+    }
+
+    public static void creerArguments(Method method, Object[] arguments, Object applicationContext){
+        for (int i=0; i<method.getParameters().length; i++) {
+            Parameter param = method.getParameters()[i];
+            if(applicationContext != null && param.getClass().isAssignableFrom(applicationContext.getClass())){
+                arguments[i] = applicationContext;
+            }
+        }
+    }
+
+    public static void creerArgumentsSansAppCtx(Method methode, Object[] arguments) {
+        for (int i = 0; i < methode.getParameters().length; i++) {
+            Parameter param = methode.getParameters()[i];
+        }
     }
 
 

@@ -15,6 +15,17 @@ public class ApplicationListener implements ServletContextListener{
         Map<UrlMethod, Mapping> urlMapping;
 
         try {
+                Class<?> utils = Class.forName("org.springframework.web.context.support.WebApplicationContextUtils");
+                Object ctx = utils
+                                .getMethod("getWebApplicationContext", ServletContext.class)
+                                .invoke(null, servletContext);
+
+                servletContext.setAttribute("springContext", ctx);
+            } catch (Exception e) {
+                System.err.println("ERROR: Spring non trouvé: " + e.getMessage() + "!!");
+            }
+
+        try {
             String nom_package = servletContext.getInitParameter("nomPackage");
 
             Utilitaire.recupererClassesAvecAnnotation(new Utilitaire(nom_package,
