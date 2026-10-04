@@ -3,12 +3,15 @@ package com.framescratch.utils;
 import java.io.File;
 import java.lang.annotation.*;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.net.URL;
+
+import com.google.gson.Gson;
 
 public class Utilitaire {
     public String nom_package;
@@ -147,6 +150,31 @@ public class Utilitaire {
         }
 
         return urlMapping;
+    }
+
+    public static void creerArguments(Method methode, Object[] arguments, Object applicationContext) {
+        for (int i = 0; i < methode.getParameters().length; i++) {
+            Parameter p = methode.getParameters()[i];
+            if (applicationContext != null && p.getType().isAssignableFrom(applicationContext.getClass())) {
+                arguments[i] = applicationContext;
+            }
+
+        }
+    }
+
+    public static void creerArguments(Method methode, Object[] arguments) {
+        for (int i = 0; i < methode.getParameters().length; i++) {
+            Parameter p = methode.getParameters()[i];
+        }
+    }
+
+    public static boolean estApiRest(Method methode) {
+        return methode.isAnnotationPresent(com.framescratch.annotation.ApiRest.class);
+    }
+
+    public static String toJson(Object object) {
+        Gson gson = new Gson();
+        return gson.toJson(object);
     }
 
 
