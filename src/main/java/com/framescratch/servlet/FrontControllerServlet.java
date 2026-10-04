@@ -12,16 +12,15 @@ import com.framescratch.utils.*;
 import com.framescratch.view.ModelAndView;
 import com.framescratch.view.ViewResolver;
 
-public class FrontControllerServlet extends HttpServlet implements ServletContextListener{
+public class FrontControllerServlet extends HttpServlet implements ServletContextListener {
     List<String> listeControllers = new ArrayList<>();
     Map<UrlMethod, Mapping> urlMapping = new HashMap<>();
     Object applicationContext;
-    
+
     // fonction init
     public void init() throws ServletException {
         listeControllers = (List<String>) getServletContext().getAttribute("listeControllers");
         urlMapping = (Map<UrlMethod, Mapping>) getServletContext().getAttribute("urlMapping");
-
         if (getServletContext().getAttribute("springContext") != null) {
             applicationContext = getServletContext().getAttribute("springContext");
         }
@@ -29,23 +28,19 @@ public class FrontControllerServlet extends HttpServlet implements ServletContex
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        response.setContentType("text/html");
         PrintWriter out = response.getWriter();
 
         String url = request.getRequestURI().substring(request.getContextPath().length());
         String method = request.getMethod();
 
-        out.println("<h1>Front Controller</h1>");
-        out.println("<p>URL recue : " + url + "</p>");
-
         afficher(url, method, request, response, out);
     }
 
-    protected void doGet(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException{
+    protected void doGet(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
         processRequest(req, res);
     }
 
-    protected void doPost(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException{
+    protected void doPost(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
         processRequest(req, res);
     }
 
@@ -57,19 +52,28 @@ public class FrontControllerServlet extends HttpServlet implements ServletContex
         Mapping mapping = urlMapping.get(urlMethod);
 
         if (mapping != null) {
-            out.println("<p>URL: " + urlMethod.getUrl() + " avec la methode : " + urlMethod.getMethod() + "| Classe: "
-                    + mapping.getClasse().getName() + " | Fonction: "
-                    + mapping.getMethode().getName() + "</p>");
             try {
                 Object instance = mapping.getClasse().getDeclaredConstructor().newInstance();
                 Method methode = mapping.getMethode();
-                
+                boolean is_apiRest = Utilitaire.estApiRest(methode);
+                if (is_apiRest) {
+                    response.setContentType("application/json");
+                } else {
+                    response.setContentType("text/html");
+
+                    out.println("<h1>Front Controller</h1>");
+                    out.println("<p>URL recue : " + url + "</p>");
+                    out.println("<p>URL: " + urlMethod.getUrl() + " avec la methode : " + urlMethod.getMethod()
+                            + "| Classe: "
+                            + mapping.getClasse().getName() + " | Fonction: "
+                            + mapping.getMethode().getName() + "</p>");
+                }
                 Object[] arguments = new Object[methode.getParameters().length];
-                    if(applicationContext != null) {
-                        Utilitaire.creerArguments(methode, arguments, applicationContext);
-                    } else {
-                        Utilitaire.creerArgumentsSansAppCtx(methode, arguments);
-                    }
+                if (applicationContext != null) {
+                    Utilitaire.creerArguments(methode, arguments, applicationContext);
+                } else {
+                    Utilitaire.creerArguments(methode, arguments);
+                }
                 Object resultat = methode.invoke(instance, arguments);
 
                 if (resultat instanceof ModelAndView) {
@@ -85,8 +89,12 @@ public class FrontControllerServlet extends HttpServlet implements ServletContex
 
                     RequestDispatcher dispatcher = request.getRequestDispatcher(viewResolver.getCheminCompletVue());
                     dispatcher.forward(request, response);
-                } else {
-                    out.println("<p>Le résultat de la méthode n'est pas de type ModelAndView.</p>");
+                } else if (is_apiRest) {
+                    if (resultat instanceof String) {
+                        out.println((String) resultat);
+                    } else {
+                        out.println(Utilitaire.toJson(resultat));
+                    }
                 }
 
             } catch (Exception e) {

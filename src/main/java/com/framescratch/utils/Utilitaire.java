@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.net.URL;
 
+import com.google.gson.Gson;
+
 public class Utilitaire {
     public String nom_package;
     public String annotation;
@@ -150,19 +152,29 @@ public class Utilitaire {
         return urlMapping;
     }
 
-    public static void creerArguments(Method method, Object[] arguments, Object applicationContext){
-        for (int i=0; i<method.getParameters().length; i++) {
-            Parameter param = method.getParameters()[i];
-            if(applicationContext != null && param.getClass().isAssignableFrom(applicationContext.getClass())){
+    public static void creerArguments(Method methode, Object[] arguments, Object applicationContext) {
+        for (int i = 0; i < methode.getParameters().length; i++) {
+            Parameter p = methode.getParameters()[i];
+            if (applicationContext != null && p.getType().isAssignableFrom(applicationContext.getClass())) {
                 arguments[i] = applicationContext;
             }
+
         }
     }
 
-    public static void creerArgumentsSansAppCtx(Method methode, Object[] arguments) {
+    public static void creerArguments(Method methode, Object[] arguments) {
         for (int i = 0; i < methode.getParameters().length; i++) {
-            Parameter param = methode.getParameters()[i];
+            Parameter p = methode.getParameters()[i];
         }
+    }
+
+    public static boolean estApiRest(Method methode) {
+        return methode.isAnnotationPresent(com.framescratch.annotation.ApiRest.class);
+    }
+
+    public static String toJson(Object object) {
+        Gson gson = new Gson();
+        return gson.toJson(object);
     }
 
 
