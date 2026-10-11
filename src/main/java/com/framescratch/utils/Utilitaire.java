@@ -3,6 +3,7 @@ package com.framescratch.utils;
 import java.io.File;
 import java.lang.annotation.*;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -169,8 +170,7 @@ public class Utilitaire {
                 arguments[i] = response;
             } else if (applicationContext != null && type != Object.class && type.isInstance(applicationContext)) {
                 arguments[i] = applicationContext;
-            } else {
-                // Sans l'option -parameters, Java nomme les parametres arg0, arg1...
+            } else if (estTypeSimple(type)) {
                 if (!p.isNamePresent()) {
                     throw new IllegalStateException("Les noms des parametres de "
                             + methode.getDeclaringClass().getSimpleName() + "." + methode.getName()
@@ -178,12 +178,71 @@ public class Utilitaire {
                 }
                 String nom = p.getName();
                 arguments[i] = convertir(nom, request.getParameter(nom), type);
+            } else {
+                // BINDING OBJET : Employee employee -> on cree l'objet et on remplit ses attributs
+                String prefixe = p.isNamePresent() ? p.getName() : null;
+                arguments[i] = binderObjet(type, prefixe, request);
             }
         }
     }
 
+    private static boolean estTypeSimple(Class<?> type) {
+        return type.isPrimitive() || type == String.class
+                || type == Integer.class || type == Long.class || type == Double.class
+                || type == Float.class || type == Short.class || type == Byte.class
+                || type == Boolean.class || type == Character.class;
+    }
+
+    private static Object binderObjet(Class<?> type, String prefixe, HttpServletRequest request) {
+        if (type.isInterface() || type.isArray() || type.isEnum()
+                || Modifier.isAbstract(type.getModifiers()) || type.getName().startsWith("java.")) {
+            return null;
+        }
+
+        Object objet;
+        try {
+            java.lang.reflect.Constructor<?> constructeur = type.getDeclaredConstructor();
+            constructeur.setAccessible(true); 
+            objet = constructeur.newInstance();
+        } catch (NoSuchMethodException e) {
+            throw new IllegalStateException("La classe " + type.getName()
+                    + " doit avoir un constructeur sans argument pour etre remplie automatiquement.");
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Impossible de creer " + type.getName() + " : " + e, e);
+        }
+
+        for (Class<?> c = type; c != null && c != Object.class; c = c.getSuperclass()) {
+            for (Field champ : c.getDeclaredFields()) {
+                int mod = champ.getModifiers();
+                if (Modifier.isStatic(mod) || Modifier.isFinal(mod) || !estTypeSimple(champ.getType())) {
+                    continue;
+                }
+
+                String nomChamp = champ.getName();
+                String valeur = null;
+                if (prefixe != null) {
+                    valeur = request.getParameter(prefixe + "." + nomChamp);
+                }
+                if (valeur == null) {
+                    valeur = request.getParameter(nomChamp);
+                }
+                if (valeur == null) {
+                    continue; 
+                }
+
+                try {
+                    champ.setAccessible(true);
+                    champ.set(objet, convertir(nomChamp, valeur, champ.getType()));
+                } catch (IllegalAccessException e) {
+                    throw new IllegalStateException("Impossible de remplir " + type.getSimpleName()
+                            + "." + nomChamp + " : " + e, e);
+                }
+            }
+        }
+        return objet;
+    }
+
     private static Object convertir(String nom, String valeur, Class<?> type) {
-        // champ sans donnee -> valeur par defaut
         if (valeur == null || (valeur.isEmpty() && type != String.class)) {
             return type.isPrimitive() ? valeurParDefaut(type) : null;
         }
