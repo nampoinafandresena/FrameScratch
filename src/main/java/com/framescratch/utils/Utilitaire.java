@@ -13,6 +13,9 @@ import java.net.URL;
 
 import com.google.gson.Gson;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
 public class Utilitaire {
     public String nom_package;
     public String annotation;
@@ -152,20 +155,64 @@ public class Utilitaire {
         return urlMapping;
     }
 
-    public static void creerArguments(Method methode, Object[] arguments, Object applicationContext) {
-        for (int i = 0; i < methode.getParameters().length; i++) {
-            Parameter p = methode.getParameters()[i];
-            if (applicationContext != null && p.getType().isAssignableFrom(applicationContext.getClass())) {
-                arguments[i] = applicationContext;
-            }
+    public static void creerArguments(Method methode, Object[] arguments, Object applicationContext,
+            HttpServletRequest request, HttpServletResponse response) {
+        Parameter[] params = methode.getParameters();
 
+        for (int i = 0; i < params.length; i++) {
+            Parameter p = params[i];
+            Class<?> type = p.getType();
+
+            if (type == HttpServletRequest.class) {
+                arguments[i] = request;
+            } else if (type == HttpServletResponse.class) {
+                arguments[i] = response;
+            } else if (applicationContext != null && type != Object.class && type.isInstance(applicationContext)) {
+                arguments[i] = applicationContext;
+            } else {
+                // Sans l'option -parameters, Java nomme les parametres arg0, arg1...
+                if (!p.isNamePresent()) {
+                    throw new IllegalStateException("Les noms des parametres de "
+                            + methode.getDeclaringClass().getSimpleName() + "." + methode.getName()
+                            + "(...) ne sont pas disponibles : compile le projet test avec 'javac -parameters'.");
+                }
+                String nom = p.getName();
+                arguments[i] = convertir(nom, request.getParameter(nom), type);
+            }
         }
     }
 
-    public static void creerArguments(Method methode, Object[] arguments) {
-        for (int i = 0; i < methode.getParameters().length; i++) {
-            Parameter p = methode.getParameters()[i];
+    private static Object convertir(String nom, String valeur, Class<?> type) {
+        // champ sans donnee -> valeur par defaut
+        if (valeur == null || (valeur.isEmpty() && type != String.class)) {
+            return type.isPrimitive() ? valeurParDefaut(type) : null;
         }
+
+        try {
+            if (type == String.class) {
+                return valeur;
+            }
+            String v = valeur.trim();
+            if (type == int.class || type == Integer.class) return Integer.parseInt(v);
+            if (type == long.class || type == Long.class) return Long.parseLong(v);
+            if (type == double.class || type == Double.class) return Double.parseDouble(v);
+            if (type == float.class || type == Float.class) return Float.parseFloat(v);
+            if (type == short.class || type == Short.class) return Short.parseShort(v);
+            if (type == byte.class || type == Byte.class) return Byte.parseByte(v);
+            if (type == boolean.class || type == Boolean.class) {
+                return v.equalsIgnoreCase("true") || v.equalsIgnoreCase("on") || v.equals("1");
+            }
+            if (type == char.class || type == Character.class) return v.charAt(0);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Parametre '" + nom + "' invalide : '" + valeur
+                    + "' ne peut pas etre converti en " + type.getSimpleName());
+        }
+
+        return null; 
+    }
+
+    private static Object valeurParDefaut(Class<?> typePrimitif) {
+        return java.lang.reflect.Array.get(java.lang.reflect.Array.newInstance(typePrimitif, 1), 0);
     }
 
     public static boolean estApiRest(Method methode) {

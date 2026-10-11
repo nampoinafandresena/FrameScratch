@@ -28,6 +28,9 @@ public class FrontControllerServlet extends HttpServlet implements ServletContex
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+        // Avant toute lecture de parametre : sinon les accents des formulaires POST sont casses
+        request.setCharacterEncoding("UTF-8");
+        response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
 
         String url = request.getRequestURI().substring(request.getContextPath().length());
@@ -56,24 +59,11 @@ public class FrontControllerServlet extends HttpServlet implements ServletContex
                 Object instance = mapping.getClasse().getDeclaredConstructor().newInstance();
                 Method methode = mapping.getMethode();
                 boolean is_apiRest = Utilitaire.estApiRest(methode);
-                if (is_apiRest) {
-                    response.setContentType("application/json");
-                } else {
-                    response.setContentType("text/html");
+                response.setContentType(is_apiRest ? "application/json" : "text/html");
 
-                    out.println("<h1>Front Controller</h1>");
-                    out.println("<p>URL recue : " + url + "</p>");
-                    out.println("<p>URL: " + urlMethod.getUrl() + " avec la methode : " + urlMethod.getMethod()
-                            + "| Classe: "
-                            + mapping.getClasse().getName() + " | Fonction: "
-                            + mapping.getMethode().getName() + "</p>");
-                }
+                // Injection (request, response, contexte Spring) + BINDING des parametres du formulaire
                 Object[] arguments = new Object[methode.getParameters().length];
-                if (applicationContext != null) {
-                    Utilitaire.creerArguments(methode, arguments, applicationContext);
-                } else {
-                    Utilitaire.creerArguments(methode, arguments);
-                }
+                Utilitaire.creerArguments(methode, arguments, applicationContext, request, response);
                 Object resultat = methode.invoke(instance, arguments);
 
                 if (resultat instanceof ModelAndView) {
@@ -97,8 +87,13 @@ public class FrontControllerServlet extends HttpServlet implements ServletContex
                     }
                 }
 
+            } catch (IllegalArgumentException e) {
+                // valeur envoyee invalide (ex: age=abc pour un int) -> erreur 400
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
             } catch (Exception e) {
-                out.println("<p>Erreur lors de l'invocation de la méthode : " + e.getMessage() + "</p>");
+                e.printStackTrace();
+                Throwable cause = (e.getCause() != null) ? e.getCause() : e;
+                out.println("<p>Erreur lors de l'invocation de la méthode : " + cause + "</p>");
             }
         } else {
             out.println("Url non trouvee : " + url);
