@@ -67,8 +67,9 @@ public class FrontControllerServlet extends HttpServlet implements ServletContex
                 Object[] arguments = new Object[methode.getParameters().length];
                 Utilitaire.creerArguments(methode, arguments, applicationContext, request, response);
                 Object resultat = methode.invoke(instance, arguments);
-
-                if (resultat instanceof ModelAndView) {
+                Utilitaire.synchroniserSessions(arguments);   // ← AJOUTER
+                
+                    if (resultat instanceof ModelAndView) {
                     ModelAndView mv = (ModelAndView) resultat;
                     ViewResolver viewResolver = new ViewResolver();
                     viewResolver.setNom_vue(mv.getNom_vue());
