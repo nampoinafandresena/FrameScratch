@@ -171,6 +171,9 @@ public class Utilitaire {
                 arguments[i] = request;
             } else if (type == HttpServletResponse.class) {
                 arguments[i] = response;
+            } else if (type == Session.class) {
+                // SESSION : on cree une Session remplie avec le contenu de la HttpSession
+                arguments[i] = new Session(request.getSession());
             } else if (applicationContext != null && type != Object.class && type.isInstance(applicationContext)) {
                 arguments[i] = applicationContext;
             } else if (type == MapFile.class) {
@@ -186,6 +189,14 @@ public class Utilitaire {
                 // BINDING OBJET : Employee employee -> on cree l'objet et on remplit ses attributs
                 String prefixe = p.isNamePresent() ? p.getName() : null;
                 arguments[i] = binderObjet(type, prefixe, request);
+            }
+        }
+    }
+
+    public static void synchroniserSessions(Object[] arguments) {
+        for (Object argument : arguments) {
+            if (argument instanceof Session) {
+                ((Session) argument).synchroniser();
             }
         }
     }
