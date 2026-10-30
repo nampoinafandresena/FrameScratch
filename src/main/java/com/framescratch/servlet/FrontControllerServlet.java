@@ -7,11 +7,13 @@ import java.util.*;
 
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
+import jakarta.servlet.annotation.MultipartConfig;
 
 import com.framescratch.utils.*;
 import com.framescratch.view.ModelAndView;
 import com.framescratch.view.ViewResolver;
 
+@MultipartConfig(maxFileSize = 10 * 1024 * 1024, maxRequestSize = 50 * 1024 * 1024)
 public class FrontControllerServlet extends HttpServlet implements ServletContextListener {
     List<String> listeControllers = new ArrayList<>();
     Map<UrlMethod, Mapping> urlMapping = new HashMap<>();

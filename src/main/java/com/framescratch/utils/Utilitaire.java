@@ -1,6 +1,7 @@
 package com.framescratch.utils;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.annotation.*;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -14,8 +15,10 @@ import java.net.URL;
 
 import com.google.gson.Gson;
 
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.Part;
 
 public class Utilitaire {
     public String nom_package;
@@ -157,7 +160,7 @@ public class Utilitaire {
     }
 
     public static void creerArguments(Method methode, Object[] arguments, Object applicationContext,
-            HttpServletRequest request, HttpServletResponse response) {
+            HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
         Parameter[] params = methode.getParameters();
 
         for (int i = 0; i < params.length; i++) {
@@ -170,12 +173,13 @@ public class Utilitaire {
                 arguments[i] = response;
             } else if (applicationContext != null && type != Object.class && type.isInstance(applicationContext)) {
                 arguments[i] = applicationContext;
+            } else if (type == MapFile.class) {
+                // UPLOAD : MapFile fichier -> on lit le fichier de l'input name="fichier"
+                verifierNomParametre(methode, p);
+                arguments[i] = lireFichier(p.getName(), request);
             } else if (estTypeSimple(type)) {
-                if (!p.isNamePresent()) {
-                    throw new IllegalStateException("Les noms des parametres de "
-                            + methode.getDeclaringClass().getSimpleName() + "." + methode.getName()
-                            + "(...) ne sont pas disponibles : compile le projet test avec 'javac -parameters'.");
-                }
+                // Texte / nombre : String nom, int age...
+                verifierNomParametre(methode, p);
                 String nom = p.getName();
                 arguments[i] = convertir(nom, request.getParameter(nom), type);
             } else {
@@ -186,6 +190,14 @@ public class Utilitaire {
         }
     }
 
+    private static void verifierNomParametre(Method methode, Parameter p) {
+        if (!p.isNamePresent()) {
+            throw new IllegalStateException("Les noms des parametres de "
+                    + methode.getDeclaringClass().getSimpleName() + "." + methode.getName()
+                    + "(...) ne sont pas disponibles : compile le projet test avec 'javac -parameters'.");
+        }
+    }
+
     private static boolean estTypeSimple(Class<?> type) {
         return type.isPrimitive() || type == String.class
                 || type == Integer.class || type == Long.class || type == Double.class
@@ -193,7 +205,8 @@ public class Utilitaire {
                 || type == Boolean.class || type == Character.class;
     }
 
-    private static Object binderObjet(Class<?> type, String prefixe, HttpServletRequest request) {
+    private static Object binderObjet(Class<?> type, String prefixe, HttpServletRequest request)
+            throws IOException, ServletException {
         if (type.isInterface() || type.isArray() || type.isEnum()
                 || Modifier.isAbstract(type.getModifiers()) || type.getName().startsWith("java.")) {
             return null;
@@ -214,11 +227,37 @@ public class Utilitaire {
         for (Class<?> c = type; c != null && c != Object.class; c = c.getSuperclass()) {
             for (Field champ : c.getDeclaredFields()) {
                 int mod = champ.getModifiers();
-                if (Modifier.isStatic(mod) || Modifier.isFinal(mod) || !estTypeSimple(champ.getType())) {
+                if (Modifier.isStatic(mod) || Modifier.isFinal(mod)) {
                     continue;
                 }
 
                 String nomChamp = champ.getName();
+
+                // Attribut de type MapFile : on lit le fichier de l'input de meme nom
+                if (champ.getType() == MapFile.class) {
+                    MapFile fichier = null;
+                    if (prefixe != null) {
+                        fichier = lireFichier(prefixe + "." + nomChamp, request);
+                    }
+                    if (fichier == null) {
+                        fichier = lireFichier(nomChamp, request);
+                    }
+                    if (fichier != null) {
+                        try {
+                            champ.setAccessible(true);
+                            champ.set(objet, fichier);
+                        } catch (IllegalAccessException e) {
+                            throw new IllegalStateException("Impossible de remplir " + type.getSimpleName()
+                                    + "." + nomChamp + " : " + e, e);
+                        }
+                    }
+                    continue;
+                }
+
+                if (!estTypeSimple(champ.getType())) {
+                    continue;
+                }
+
                 String valeur = null;
                 if (prefixe != null) {
                     valeur = request.getParameter(prefixe + "." + nomChamp);
@@ -227,7 +266,7 @@ public class Utilitaire {
                     valeur = request.getParameter(nomChamp);
                 }
                 if (valeur == null) {
-                    continue; 
+                    continue; // rien envoye pour cet attribut
                 }
 
                 try {
@@ -240,6 +279,48 @@ public class Utilitaire {
             }
         }
         return objet;
+    }
+
+    private static MapFile lireFichier(String nomInput, HttpServletRequest request)
+            throws IOException, ServletException {
+
+        // 1. Le formulaire doit etre enctype="multipart/form-data", sinon aucun fichier n'est envoye
+        String typeRequete = request.getContentType();
+        if (typeRequete == null || !typeRequete.toLowerCase().startsWith("multipart/")) {
+            return null;
+        }
+
+        // 2. On recupere la "partie" de la requete qui correspond a cet input
+        Part part = request.getPart(nomInput);
+        if (part == null) {
+            return null;
+        }
+
+        // 3. Le nom du fichier (vide si l'utilisateur n'a rien choisi)
+        String nomComplet = part.getSubmittedFileName();
+        if (nomComplet == null || nomComplet.isEmpty()) {
+            return null;
+        }
+        // (certains navigateurs envoient le chemin complet "C:\\dossier\\photo.jpg" : on garde le nom)
+        nomComplet = nomComplet.substring(Math.max(nomComplet.lastIndexOf('/'), nomComplet.lastIndexOf('\\')) + 1);
+
+        // 4. On separe le nom et l'extension : "photo.jpg" -> "photo" et "jpg"
+        String nomFichier = nomComplet;
+        String extension = "";
+        int positionPoint = nomComplet.lastIndexOf('.');
+        if (positionPoint > 0) {
+            nomFichier = nomComplet.substring(0, positionPoint);
+            extension = nomComplet.substring(positionPoint + 1);
+        }
+
+        // 5. Le contenu du fichier, sous forme de tableau de bytes
+        byte[] bytes;
+        try (java.io.InputStream flux = part.getInputStream()) {
+            bytes = flux.readAllBytes();
+        }
+
+        // 6. On remplit le MapFile
+        return new MapFile(nomFichier, extension, bytes);
     }
 
     private static Object convertir(String nom, String valeur, Class<?> type) {
