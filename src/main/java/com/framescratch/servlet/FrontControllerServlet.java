@@ -58,8 +58,7 @@ public class FrontControllerServlet extends HttpServlet implements ServletContex
 
         if (mapping != null) {
             try {
-                Object instance = mapping.getClasse().getDeclaredConstructor().newInstance();
-                Method methode = mapping.getMethode();
+                Object instance = Utilitaire.getOuCreerInstance(getServletContext(), mapping.getClasse());                Method methode = mapping.getMethode();
                 if (Utilitaire.necessiteAuth(methode)) {
 
                     // 1. L'utilisateur est-il connecté ?

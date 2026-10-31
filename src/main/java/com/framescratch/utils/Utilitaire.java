@@ -25,11 +25,33 @@ public class Utilitaire {
     public String nom_package;
     public String annotation;
     public ElementType niveau;
+    public static final String ATTR_INSTANCES_CONTROLEURS = "instancesControleurs";
 
     public Utilitaire(String nom_package, String annotation, ElementType niveau) {
         this.nom_package = nom_package;
         this.annotation = annotation;
         this.niveau = niveau;
+    }
+
+    @SuppressWarnings("unchecked")
+    public static Object getOuCreerInstance(jakarta.servlet.ServletContext contexte, Class<?> classe) throws Exception {
+        // synchronized : évite que 2 requêtes simultanées créent 2 instances du même contrôleur
+        synchronized (contexte) {
+            Map<Class<?>, Object> instances = (Map<Class<?>, Object>) contexte.getAttribute(ATTR_INSTANCES_CONTROLEURS);
+            if (instances == null) {
+                instances = new HashMap<>();
+                contexte.setAttribute(ATTR_INSTANCES_CONTROLEURS, instances);
+            }
+
+            Object instance = instances.get(classe);
+            if (instance == null) {                       // première fois : on crée
+                java.lang.reflect.Constructor<?> constructeur = classe.getDeclaredConstructor();
+                constructeur.setAccessible(true);
+                instance = constructeur.newInstance();
+                instances.put(classe, instance);          // et on la stocke pour les prochaines requêtes
+            }
+            return instance;
+        }
     }
 
     public static void getAllClassesFromPackage(String nom_package, List<Class<?>> classes) throws Exception{
