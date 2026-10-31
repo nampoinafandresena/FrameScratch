@@ -60,6 +60,18 @@ public class FrontControllerServlet extends HttpServlet implements ServletContex
             try {
                 Object instance = mapping.getClasse().getDeclaredConstructor().newInstance();
                 Method methode = mapping.getMethode();
+                if (Utilitaire.necessiteAuth(methode)) {
+                    String nomVariable = getServletContext().getInitParameter("nomVariableSessionAuth");
+                    if (nomVariable == null || nomVariable.trim().isEmpty()) {
+                        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                                "Configuration manquante : ajoute le context-param 'nomVariableSessionAuth' dans web.xml");
+                        return;
+                    }
+                    if (!Utilitaire.estAuthentifie(request, nomVariable.trim())) {
+                        response.sendError(HttpServletResponse.SC_FORBIDDEN, "Acces refuse : authentification requise");
+                        return;
+                    }
+                }
                 boolean is_apiRest = Utilitaire.estApiRest(methode);
                 response.setContentType(is_apiRest ? "application/json" : "text/html");
 

@@ -18,6 +18,7 @@ import com.google.gson.Gson;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.Part;
 
 public class Utilitaire {
@@ -191,6 +192,15 @@ public class Utilitaire {
                 arguments[i] = binderObjet(type, prefixe, request);
             }
         }
+    }
+
+    public static boolean necessiteAuth(Method methode) {
+        return methode.isAnnotationPresent(com.framescratch.annotation.Auth.class);
+    }
+
+    public static boolean estAuthentifie(HttpServletRequest request, String nomVariable) {
+        HttpSession session = request.getSession(false);
+        return session != null && session.getAttribute(nomVariable) != null;
     }
 
     public static void synchroniserSessions(Object[] arguments) {
