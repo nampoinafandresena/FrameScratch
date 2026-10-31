@@ -61,15 +61,33 @@ public class FrontControllerServlet extends HttpServlet implements ServletContex
                 Object instance = mapping.getClasse().getDeclaredConstructor().newInstance();
                 Method methode = mapping.getMethode();
                 if (Utilitaire.necessiteAuth(methode)) {
-                    String nomVariable = getServletContext().getInitParameter("nomVariableSessionAuth");
-                    if (nomVariable == null || nomVariable.trim().isEmpty()) {
+
+                    // 1. L'utilisateur est-il connecté ?
+                    String nomVariableAuth = getServletContext().getInitParameter("nomVariableSessionAuth");
+                    if (nomVariableAuth == null || nomVariableAuth.trim().isEmpty()) {
                         response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                                 "Configuration manquante : ajoute le context-param 'nomVariableSessionAuth' dans web.xml");
                         return;
                     }
-                    if (!Utilitaire.estAuthentifie(request, nomVariable.trim())) {
+                    if (!Utilitaire.estAuthentifie(request, nomVariableAuth.trim())) {
                         response.sendError(HttpServletResponse.SC_FORBIDDEN, "Acces refuse : authentification requise");
                         return;
+                    }
+
+                    // 2. Si un rôle est demandé, l'utilisateur a-t-il ce rôle ?
+                    String roleRequis = Utilitaire.getRoleRequis(methode);
+                    if (!roleRequis.isEmpty()) {
+                        String nomVariableRole = getServletContext().getInitParameter("nomVariableSessionRole");
+                        if (nomVariableRole == null || nomVariableRole.trim().isEmpty()) {
+                            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                                    "Configuration manquante : ajoute le context-param 'nomVariableSessionRole' dans web.xml");
+                            return;
+                        }
+                        if (!Utilitaire.aLeRole(request, nomVariableRole.trim(), roleRequis)) {
+                            response.sendError(HttpServletResponse.SC_FORBIDDEN,
+                                    "Acces refuse : le role " + roleRequis + " est requis");
+                            return;
+                        }
                     }
                 }
                 boolean is_apiRest = Utilitaire.estApiRest(methode);

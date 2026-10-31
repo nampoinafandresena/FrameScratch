@@ -198,6 +198,20 @@ public class Utilitaire {
         return methode.isAnnotationPresent(com.framescratch.annotation.Auth.class);
     }
 
+    public static String getRoleRequis(Method methode) {
+        com.framescratch.annotation.Auth auth = methode.getAnnotation(com.framescratch.annotation.Auth.class);
+        return auth == null ? "" : auth.role().trim();
+    }
+ 
+    public static boolean aLeRole(HttpServletRequest request, String nomVariableRole, String roleRequis) {
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            return false;
+        }
+        Object roleUtilisateur = session.getAttribute(nomVariableRole);
+        return roleUtilisateur != null && roleRequis.equals(roleUtilisateur.toString().trim());
+    }
+
     public static boolean estAuthentifie(HttpServletRequest request, String nomVariable) {
         HttpSession session = request.getSession(false);
         return session != null && session.getAttribute(nomVariable) != null;
